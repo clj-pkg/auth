@@ -33,6 +33,9 @@
                                             :name    "Name"
                                             :picture "http://google.com/avatar.png"}))))
 
+(defn add-to-req [handler kw provider]
+  (fn [req] (handler (assoc req kw provider))))
+
 (deftest oauth2-test
   (let [provider {:name      "mock"
                   :endpoints {:auth-url  (format "http://127.0.0.1:%d/login/oauth/authorize" auth-port)
@@ -42,22 +45,24 @@
                   :map-user  (fn [{:keys [id name picture]}]
                                {:id (str "mock_" id) :name name :picture picture})}
         params {:client-id "cid" :client-secret "csecret"}
-        handler (-> params
-                    (merge provider)
-                    ;(providers/handler)
+        handler (-> providers/handler
+                    (add-to-req :provider (merge params provider))
+                    (add-to-req :auth-opts {:secret "123"})
                     (params/wrap-params)
                     (cookies/wrap-cookies)
                     (json-mw/wrap-json-response))
         server (jetty/run-jetty handler {:port login-port :join? false})
         oauth2-server (jetty/run-jetty (-> oauth2-handler
                                            (params/wrap-params)) {:port auth-port :join? false})]
-    (let [{:keys [headers body]} (client/get "http://127.0.0.1:8981/login" {:http-client http-client
-                                                                            :as          :json})]
-      (is (= body
-             {:id      123
-              :name    "Name"
-              :picture "http://google.com/avatar.png"}))
-      (is (true? (-> (get headers "set-cookie") first (string/starts-with? "JWT="))))
-      (is (true? (-> (get headers "set-cookie") second (string/starts-with? "XSRF-TOKEN="))))
-      (.stop server)
-      (.stop oauth2-server))))
+    (try
+      (let [{:keys [headers body]} (client/get "http://127.0.0.1:8981/login" {:http-client http-client
+                                                                              :as          :json})]
+        (is (= body
+               {:id      123
+                :name    "Name"
+                :picture "http://google.com/avatar.png"}))
+        (is (true? (-> (get headers "set-cookie") first (string/starts-with? "JWT="))))
+        (is (true? (-> (get headers "set-cookie") second (string/starts-with? "XSRF-TOKEN=")))))
+      (finally
+        (.stop server)
+        (.stop oauth2-server)))))

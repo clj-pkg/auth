@@ -34,7 +34,7 @@
       "/avatar" (resp/response nil))))                      ; TODO implement avatar
 
 (defn run [provider]
-  (log/infof "[INFO] run local oauth2 dev server on %d, redirect url=%s" dev-auth-port :redirect-url)
+  (log/infof "[INFO] run local oauth2 dev server on %d, %s" dev-auth-port provider)
   (jetty/run-jetty (-> provider
                        (oauth2-handler)
                        (params/wrap-params)

@@ -28,12 +28,13 @@
 
 (defn get-claims [{:keys [auth-opts cookies]}]
   (try
-    (let [token (-> cookies (get default-jwt-cookie-name) :value jwt/str->jwt)]
-      (if (jwt/verify token (:secret auth-opts))
-        (:claims token)
-        (throw (IllegalArgumentException. "token is invalid"))))
+    (when-let [token (-> cookies (get default-jwt-cookie-name) :value)]
+      (let [jwt (jwt/str->jwt token)]
+        (if (jwt/verify jwt (:secret auth-opts))
+          (:claims jwt)
+          (throw (IllegalArgumentException. "token is invalid")))))
     (catch Exception e
-      (log/error e)
+      (log/error "can't parse token" e)
       nil)))
 
 (defn reset []

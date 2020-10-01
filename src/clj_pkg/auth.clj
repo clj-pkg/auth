@@ -23,7 +23,8 @@
     (apply merge-with deep-merge maps)))
 
 (defn handlers [options]
-  (let [providers (deep-merge prov/data (:providers options))
+  (let [prov-data (-> prov/data (select-keys (-> options :providers keys)))
+        providers (deep-merge prov-data (:providers options))
         opts (dissoc options :providers)]                   ; todo initialize
     (fn [{:keys [uri] :as req}]
       (let [parts (string/split uri #"/")
@@ -34,7 +35,7 @@
         (cond
           (= (last parts) "list") (resp/response (keys providers))
           (= (last parts) "user") (user-handler req)
-          ;(= (last parts) "logout") ((prov/handler opts (first providers)) req)
+          (= (last parts) "logout") (prov/handler (assoc req :provider (first providers)))
           (contains? providers provider-kw) (prov/handler req)
           :else (resp/bad-request {:error "provider not supported"}))))))
 

@@ -7,19 +7,23 @@
 (def login-port 8981)
 (def auth-port 8982)
 
-(defmacro with-server [handler & body]
-  `(let [server# (jetty/run-jetty ~handler {:port login-port :join? true})]
-     (log/info "start server")
-     ~@body
-     (.stop server#)
-     (log/info "stop server")))
+(defmacro with-api-server [handler & body]
+  `(let [server# (jetty/run-jetty ~handler {:port login-port :join? false})]
+     (try
+       (log/info "start server")
+       ~@body
+       (finally
+         (.stop server#)
+         (log/info "stop server")))))
 
 (defmacro with-dev-server [auth-opts & body]
   `(let [dev-server# (auth/run-dev-oauth2 ~auth-opts)]
-     (log/info "start dev server")
-     ~@body
-     (auth/stop-dev-oauth2 dev-server#)
-     (log/info "stop dev server")))
+     (try
+       (log/info "start dev server")
+       ~@body
+       (finally
+         (auth/stop-dev-oauth2 dev-server#)
+         (log/info "stop dev server")))))
 
 (def ^:dynamic *http-client*)
 

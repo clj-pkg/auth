@@ -2,7 +2,7 @@
  :deps    {org.clojure/clojure     {:mvn/version "1.10.1"}
            metosin/reitit          {:mvn/version "0.5.2"}
            ring/ring-jetty-adapter {:mvn/version "1.8.1"}
-           clj-pkg/auth            {:mvn/version "1.0.0"}}
+           clj-pkg/auth            {:mvn/version "0.0.1"}}
  :aliases {:test    {:extra-paths ["test"]
                      :extra-deps  {org.clojure/test.check {:mvn/version "1.0.0"}}}
            :uberjar {:extra-deps {seancorfield/depstar {:mvn/version "1.0.94"}}
