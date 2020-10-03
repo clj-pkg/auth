@@ -5,6 +5,7 @@
             [clojure.spec.alpha :as s]
             [ring.util.response :as resp]
             [clj-pkg.auth.token :as token]
+            ;[clj-pkg.railway :refer [=>]]
             [clj-pkg.auth.providers :as prov]
             [clj-pkg.auth.dev-provider :as dev-provider]))
 
@@ -48,6 +49,21 @@
   [server]
   (dev-provider/stop server))
 
+
+;(defn validate-claims [req]
+;  (if-let [claims (token/get-claims req)]
+;    [{:claims claims} nil]
+;    [nil "failed to get token"]))
+;
+;(defn middleware2 []
+;  (fn [req]
+;    (=> req
+;        validate-claims))
+;  )
+
+(defn refresh-token [auth-opts claims]
+  (token/set-cookies auth-opts (dissoc claims :expires-at)))
+
 (defn middleware
   "Middleware used in routes that require authentication. If request is not
    authenticated a 401 not authorized response will be returned"
@@ -56,7 +72,16 @@
     (fn [req]
       (if-let [claims (token/get-claims (assoc req :auth-opts options))]
         (if-let [user (:user claims)]
-          (handler (assoc req :user user))
+          (let [validator-fn (:validator options)]
+            (if (or (nil? validator-fn) (validator-fn "tkn-str" claims))
+              (if (token/expired? claims)
+                (let [cookies (refresh-token options claims)
+                      resp (handler (assoc req :user user))]
+                  (assoc resp :cookies cookies))
+                (handler (assoc req :user user)))
+              (do
+                (log/infof "user %s/%s blocked" (:name user) (:id user))
+                (assoc (unauthorized {:error "Unauthorized"}) :cookies (token/reset)))))
           (unauthorized {:error "Unauthorized"}))
         (unauthorized {:error "Unauthorized"})))))
 

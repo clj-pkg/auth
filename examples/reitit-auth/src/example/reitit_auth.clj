@@ -4,7 +4,8 @@
             [ring.middleware.json :as json-mw]
             [ring.middleware.cookies :as cookies]
             [reitit.ring.middleware.parameters :as parameters]
-            [ring.adapter.jetty :as jetty])
+            [ring.adapter.jetty :as jetty]
+            [clojure.string :refer [starts-with?]])
   (:gen-class))
 
 (def cookies-middleware
@@ -23,8 +24,14 @@
                   :token-duration  60
                   :cookie-duration (* 60 60 24)
                   :issuer          "my-service"
-                  :claims-upd      (fn [] (prn "TODO"))
-                  :validator       (fn [] (prn "TODO"))
+                  :claims-upd      (fn [claims]             ; sets additional user parameters during login
+                                     (if (= (-> claims :user :name) "dev_admin")
+                                       (assoc-in claims [:user :is-admin] true)
+                                       claims))
+                  :validator       (fn [_ claims]           ; allow users only with google and dev providers
+                                     (or
+                                       (starts-with? (-> claims :user :id) "google_")
+                                       (starts-with? (-> claims :user :id) "dev_")))
                   :providers       {:google {:client-id     "<google-client-id>"
                                              :client-secret "<google-client-secret>"}
                                     :github {:client-id     "<github-client-id>"

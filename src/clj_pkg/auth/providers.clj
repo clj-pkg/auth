@@ -11,8 +11,8 @@
                           :token-url "https://oauth2.googleapis.com/token"
                           :info-url  "https://www.googleapis.com/oauth2/v3/userinfo"}
             :scopes      ["https://www.googleapis.com/auth/userinfo.profile"]
-            :map-user-fn (fn [{:keys [id name picture]}]
-                           {:id      (str "google_" (token/hash-id id))
+            :map-user-fn (fn [{:keys [sub name picture]}]
+                           {:id      (str "google_" (token/hash-id sub))
                             :name    (or name "noname")
                             :picture picture})}
 
@@ -33,7 +33,11 @@
             :automatic?    true
             :endpoints     {:auth-url  "http://127.0.0.1:8084/login/oauth/authorize"
                             :token-url "http://127.0.0.1:8084/login/oauth/access_token"
-                            :info-url  "http://127.0.0.1:8084/user"}}})
+                            :info-url  "http://127.0.0.1:8084/user"}
+            :map-user-fn   (fn [{:keys [id name picture]}]
+                             {:id      (str "dev_" (token/hash-id id))
+                              :name    name
+                              :picture picture})}})
 
 (defn handler [{:keys [uri provider] :as req}]
   (if provider

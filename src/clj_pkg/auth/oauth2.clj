@@ -1,6 +1,7 @@
 (ns clj-pkg.auth.oauth2
   (:require [clojure.tools.logging :as log]
-            [clj-pkg.auth.token :as token]
+            [clj-pkg.auth.token :refer [unix-time-plus-minutes] :as token]
+            [clj-pkg.railway :refer [=>] :as rw]
             [hato.client :as client]
             [camel-snake-kebab.core :refer [->kebab-case-keyword ->snake_case_keyword]]
             [camel-snake-kebab.extras :as cske]
@@ -8,21 +9,7 @@
             [ring.util.request :as req]
             [ring.util.codec :as codec]
             [ring.util.response :as resp])
-  (:import (java.util UUID)
-           (java.time Instant Duration)))
-
-(defn apply-or-error [f [val err]]
-  (if (nil? err)
-    (f val)
-    [nil err]))
-
-(defmacro => [val & fns]
-  (let [fns (for [f fns] `(apply-or-error ~f))]
-    `(->> [~val nil]
-          ~@fns)))
-
-(defn success [msg] [msg nil])
-(defn fail [err] [nil err])
+  (:import (java.util UUID)))
 
 (defn random-string []
   (.toString (UUID/randomUUID)))
@@ -63,11 +50,6 @@
         authorize-url (-> provider :endpoints :auth-url)
         redirect-url (or (-> provider :endpoints :redirect-url) (create-redirect-url req))]
     (format "%s?response_type=code&client_id=%s&redirect_uri=%s&scope=%s&state=%s" authorize-url client-id redirect-url scopes state)))
-
-(defn- unix-time-plus-minutes [minutes]
-  (-> (Instant/now)
-      (.plus (Duration/ofMinutes minutes))
-      (.getEpochSecond)))
 
 (defn- create-claims [state from]
   {:id         state
@@ -111,7 +93,7 @@
   (->> req
        create-redirect-url
        (assoc-in req [:provider :endpoints :redirect-url])
-       success))
+       rw/success))
 
 (defn retrieve-access-token [{:keys [code provider] :as req}]
   (let [tok (exchange code provider)]
@@ -123,7 +105,7 @@
          (user-info access-token)
          (map-user-fn)
          (assoc req :user-info)
-         (success))))
+         (rw/success))))
 
 (defn create-auth-cookies [{:keys [claims user-info auth-opts] :as req}]
   (-> req
@@ -132,7 +114,7 @@
                                                     :issuer       (:issuer auth-opts)
                                                     :user         user-info
                                                     :session-only (:session-only claims)}))
-      (success)))
+      (rw/success)))
 
 ;GET /login?from=redirect-back-url&session=1
 (defn login-handler [{:keys [auth-opts provider] :as req}]
@@ -149,22 +131,26 @@
 
 ; GET /{provider}/callback
 (defn auth-handler [req]
-  (let [[{:keys [redirect-url cookies user-info]} err] (=> req
-                                                           validate-code
-                                                           validate-claims
-                                                           validate-state
-                                                           build-redirect-url
-                                                           retrieve-access-token
-                                                           retrieve-user-info
-                                                           create-auth-cookies)]
-    (cond
-      (not (nil? err)) (resp/bad-request {:error err})
-      (not (nil? redirect-url)) {:status  302
-                                 :cookies cookies
-                                 :headers {"Location" redirect-url}}
-      :else {:status  200
-             :cookies cookies
-             :body    user-info})))
+  (try
+    (let [[{:keys [redirect-url cookies user-info]} err] (=> req
+                                                             validate-code
+                                                             validate-claims
+                                                             validate-state
+                                                             build-redirect-url
+                                                             retrieve-access-token
+                                                             retrieve-user-info
+                                                             create-auth-cookies)]
+      (cond
+        (not (nil? err)) (resp/bad-request {:error err})
+        (not (nil? redirect-url)) {:status  302
+                                   :cookies cookies
+                                   :headers {"Location" redirect-url}}
+        :else {:status  200
+               :cookies cookies
+               :body    user-info}))
+    (catch Exception e
+      {:status  200
+       :body    "Internal server error"})))
 
 ; GET /{provider}/logout
 (defn logout-handler [_]

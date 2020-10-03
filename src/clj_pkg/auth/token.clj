@@ -1,7 +1,8 @@
 (ns clj-pkg.auth.token
   (:require [clj-pkg.jwt :as jwt]
             [clojure.tools.logging :as log])
-  (:import (java.security MessageDigest)))
+  (:import (java.security MessageDigest)
+           (java.time Instant Duration)))
 
 (def default-jwt-cookie-name "JWT")
 (def default-jwt-header-key "X-JWT")
@@ -12,9 +13,24 @@
 (def default-token-duration (* 60 15))                      ; 15 minutes
 (def default-cookie-duration (* 60 60 24 31))               ; 1 month
 
+(defn unix-time-plus-minutes [minutes]
+  (-> (Instant/now)
+      (.plus (Duration/ofMinutes minutes))
+      (.getEpochSecond)))
+
+(defn unix-time-plus-seconds [seconds]
+  (-> (Instant/now)
+      (.plus (Duration/ofSeconds seconds))
+      (.getEpochSecond)))
+
 (defn set-cookies [auth-opts claims]
   (let [cookie-duration (or (:cookie-duration auth-opts) default-cookie-duration) ; TODO set to max-age if not session only and handshake == nil
-        claims (merge {:issuer default-issuer} claims)
+        claims (merge {:issuer     default-issuer
+                       :expires-at (unix-time-plus-seconds (or (:token-duration auth-opts) default-token-duration))} claims)
+        claims-upd-fn (:claims-upd auth-opts)
+        claims (if (not (nil? claims-upd-fn))
+                 (claims-upd-fn claims)
+                 claims)
         jwt-token (jwt/sign (jwt/jwt :hs256 claims) (:secret auth-opts))]
 
     {default-jwt-cookie-name  {:value     jwt-token
@@ -28,7 +44,7 @@
 
 (defn get-claims [{:keys [auth-opts cookies]}]
   (try
-    (when-let [token (-> cookies (get default-jwt-cookie-name) :value)]
+    (when-let [token (-> cookies (get default-jwt-cookie-name) :value not-empty)]
       (let [jwt (jwt/str->jwt token)]
         (if (jwt/verify jwt (:secret auth-opts))
           (:claims jwt)
@@ -36,6 +52,10 @@
     (catch Exception e
       (log/error "can't parse token" e)
       nil)))
+
+(defn expired? [claims]
+  (<= (:expires-at claims)
+      (unix-time-plus-minutes 0)))
 
 (defn reset []
   {default-jwt-cookie-name  {:value     ""

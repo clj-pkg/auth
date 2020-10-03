@@ -28,10 +28,11 @@
                                                   :scope        "https://www.googleapis.com/auth/userinfo.profile",
                                                   :token_type   "Bearer",
                                                   :id_token     "aqZmjVmOWIaqZmjVmOWIaqZmjVmOWI"})
-      "/user" (resp/response {:id      123
+      "/user" (resp/response {:id      "123"
                               :name    (:username @user-info)
                               :picture (format "http://127.0.0.1:%s/avatar?user=%s" dev-auth-port (:username @user-info))})
-      "/avatar" (resp/response nil))))                      ; TODO implement avatar
+      "/avatar" (resp/response nil)
+      "/favicon.ico" (resp/not-found nil))))                ; TODO implement avatar
 
 (defn run [provider]
   (log/infof "[INFO] run local oauth2 dev server on %d, %s" dev-auth-port provider)

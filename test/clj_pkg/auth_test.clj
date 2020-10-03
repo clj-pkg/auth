@@ -29,7 +29,9 @@
                (ring/router [["/auth/*" (auth/handlers auth-params)]
                              ["/open" {:handler (fn [_] {:status 200 :body {:data "open data"}})}]
                              ["/private" {:middleware [(auth/middleware auth-params)]
-                                          :handler    (fn [_] {:status 200 :body {:data "private data"}})}]]
+                                          :handler    (fn [req] {:status 200
+                                                                 :body   {:data "private data"
+                                                                          :user (:user req)}})}]]
                             route-middleware)))
 
 (deftest ^:integration protected-test
@@ -53,7 +55,10 @@
 
         (let [{:keys [status body]} (client-get "http://127.0.0.1:8981/private")]
           (is (= status 200))
-          (is (= body {:data "private data"})))))))
+          (is (= body {:data "private data"
+                       :user {:id      123
+                              :name    "dev-user"
+                              :picture "http://127.0.0.1:8084/avatar?user=dev-user"}})))))))
 
 (deftest ^:integration list-test
   (with-http-client
