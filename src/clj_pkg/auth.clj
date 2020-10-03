@@ -85,7 +85,7 @@
           (unauthorized {:error "Unauthorized"}))
         (unauthorized {:error "Unauthorized"})))))
 
-(defn updated-user-middleware [user-updater-fn]
+(defn update-user-middleware [user-updater-fn]
   (fn [handler]
     (fn [req]
-      (handler (-> req :user user-updater-fn (assoc req :user))))))
+      (handler (->> req :user user-updater-fn (assoc req :user))))))

@@ -28,7 +28,9 @@
 (def handler (ring/ring-handler
                (ring/router [["/auth/*" (auth/handlers auth-params)]
                              ["/open" {:handler (fn [_] {:status 200 :body {:data "open data"}})}]
-                             ["/private" {:middleware [(auth/middleware auth-params)]
+                             ["/private" {:middleware [(auth/middleware auth-params)
+                                                       (auth/update-user-middleware (fn [user]
+                                                                                      (assoc user :custom-param "custom-param-value")))]
                                           :handler    (fn [req] {:status 200
                                                                  :body   {:data "private data"
                                                                           :user (:user req)}})}]]
@@ -48,7 +50,7 @@
 
         (let [{:keys [status headers body] :as resp} (client-get "http://127.0.0.1:8981/auth/dev/login")]
           (is (= status 200))
-          (is (= body {:id 123 :name "dev-user" :picture "http://127.0.0.1:8084/avatar?user=dev-user"}))
+          (is (= body {:id "dev_40bd001563085fc35165329ea1ff5c5ecbdbbeef" :name "dev-user" :picture "http://127.0.0.1:8084/avatar?user=dev-user"}))
           (is (= 2 (count (get headers "set-cookie"))))
           (is (true? (-> (get headers "set-cookie") first (string/starts-with? "JWT="))))
           (is (true? (-> (get headers "set-cookie") second (string/starts-with? "XSRF-TOKEN=")))))
@@ -56,9 +58,10 @@
         (let [{:keys [status body]} (client-get "http://127.0.0.1:8981/private")]
           (is (= status 200))
           (is (= body {:data "private data"
-                       :user {:id      123
-                              :name    "dev-user"
-                              :picture "http://127.0.0.1:8084/avatar?user=dev-user"}})))))))
+                       :user {:id           "dev_40bd001563085fc35165329ea1ff5c5ecbdbbeef"
+                              :name         "dev-user"
+                              :picture      "http://127.0.0.1:8084/avatar?user=dev-user"
+                              :custom-param "custom-param-value"}})))))))
 
 (deftest ^:integration list-test
   (with-http-client
@@ -78,11 +81,11 @@
 
         (let [{:keys [status body]} (client-get "http://127.0.0.1:8981/auth/dev/login")]
           (is (= status 200))
-          (is (= body {:id 123 :name "dev-user" :picture "http://127.0.0.1:8084/avatar?user=dev-user"})))
+          (is (= body {:id "dev_40bd001563085fc35165329ea1ff5c5ecbdbbeef" :name "dev-user" :picture "http://127.0.0.1:8084/avatar?user=dev-user"})))
 
         (let [{:keys [status body]} (client-get "http://127.0.0.1:8981/auth/user")]
           (is (= status 200))
-          (is (= body {:id 123 :name "dev-user" :picture "http://127.0.0.1:8084/avatar?user=dev-user"})))))))
+          (is (= body {:id "dev_40bd001563085fc35165329ea1ff5c5ecbdbbeef" :name "dev-user" :picture "http://127.0.0.1:8084/avatar?user=dev-user"})))))))
 
 (deftest ^:integration logout-test
   (with-http-client
@@ -90,7 +93,7 @@
       (with-api-server handler
         (let [{:keys [status body]} (client-get "http://127.0.0.1:8981/auth/dev/login")]
           (is (= status 200))
-          (is (= body {:id 123 :name "dev-user" :picture "http://127.0.0.1:8084/avatar?user=dev-user"})))
+          (is (= body {:id "dev_40bd001563085fc35165329ea1ff5c5ecbdbbeef" :name "dev-user" :picture "http://127.0.0.1:8084/avatar?user=dev-user"})))
 
         (let [{:keys [status body]} (client-get "http://127.0.0.1:8981/auth/logout")]
           (is (= status 200))
@@ -124,4 +127,3 @@
           (let [{:keys [status body]} (client-get "http://127.0.0.1:8981/auth/logout")]
             (is (= status 400))
             (is (= body {:error "providers not defined"}))))))))
-
