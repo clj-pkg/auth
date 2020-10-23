@@ -1,15 +1,15 @@
 {:paths   ["src" "resources"]
  :deps    {org.clojure/clojure       {:mvn/version "1.10.1"}
            clj-pkg/jwt               {:mvn/version "1.0.0"}
-           hato                      {:mvn/version "0.7.0"}
-           camel-snake-kebab         {:mvn/version "0.4.1"}
+           hato                      {:mvn/version "0.7.1"}
+           camel-snake-kebab         {:mvn/version "0.4.2"}
            org.clojure/tools.logging {:mvn/version "1.1.0"}
            ring/ring-jetty-adapter   {:mvn/version "1.8.2"}
            ring/ring-json            {:mvn/version "0.5.0"}}
  :aliases {:test {:extra-paths ["test"]
                   :extra-deps  {lambdaisland/kaocha            {:mvn/version "1.0.700"}
                                 org.clojure/test.check         {:mvn/version "1.1.0"}
-                                metosin/reitit                 {:mvn/version "0.5.6"}
+                                metosin/reitit                 {:mvn/version "0.5.10"}
                                 ch.qos.logback/logback-classic {:mvn/version "1.2.3"}
                                 ch.qos.logback/logback-core    {:mvn/version "1.2.3"}
                                 org.slf4j/slf4j-api            {:mvn/version "1.7.30"}}}}}
